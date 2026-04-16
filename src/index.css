@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Georgia&family=Inter:wght@400;500;600&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #F8F5F2; /* Soft clay background */
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+canvas {
+  touch-action: none;
+}
+
+/* Custom scrollbar for wall */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 69, 19, 0.4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 69, 19, 0.6);
+}
+
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+button:active {
+  transform: translateY(1px);
+}
