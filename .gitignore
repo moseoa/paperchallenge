@@ -1,0 +1,23 @@
+# Node
+node_modules/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Antigravity / IDE
+.antigravity/cache/
+.gemini/
+
+# OS
+.DS_Store
+Thumbs.db
