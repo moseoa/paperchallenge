@@ -21,3 +21,39 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+
+# Anaconda / Conda
+anaconda3/
+miniconda3/
+miniforge3/
+envs/
+pkgs/
+conda-meta/
+*.conda
+*.tar.bz2
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.pnpm-store/
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / Antigravity
+.antigravity/
+.gemini/
+*.log
