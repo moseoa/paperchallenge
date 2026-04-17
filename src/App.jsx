@@ -5,8 +5,11 @@ import './index.css';
 export default function App() {
   const [bricks, setBricks] = useState([]);
   const [hoveredBrick, setHoveredBrick] = useState(null);
+  const [activeBrickId, setActiveBrickId] = useState(null);
   const [currentUser] = useState('User_' + Math.floor(Math.random() * 1000));
   const [isPlacing, setIsPlacing] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
     fetchWall();
@@ -66,32 +69,59 @@ export default function App() {
     }
   };
 
-  const suggestQuote = async (brick) => {
-    const rowNum = brick.y;
-    const neighborQuotes = bricks
-      .filter(b => Math.abs(b.y - rowNum) <= 1 && b.quote)
-      .map(b => b.quote);
+  const interactWithAgent = async (brick, userMessage) => {
+    setIsTyping(true);
+    const history = [...chatHistory];
+    if (userMessage) {
+      history.push({ role: 'user', content: userMessage });
+      setChatHistory(history);
+    }
 
     try {
-      const ageDays = (Date.now() - brick.placedAt) / (1000 * 3600 * 24);
-      const res = await fetch('http://localhost:3001/api/suggest-quote', {
+      const res = await fetch('http://localhost:3001/api/agent-interact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          owner: brick.owner,
-          ageDays: ageDays.toFixed(1),
-          neighborQuotes
+          isOwner: brick.owner === currentUser,
+          currentMarks: brick.marks,
+          messageHistory: history
         })
       });
-      const { suggestion } = await res.json();
+      const data = await res.json();
       
-      // Update locally
-      const updated = bricks.map(b => b.id === brick.id ? { ...b, quote: suggestion } : b);
-      setBricks(updated);
-      
+      const updatedHistory = [...history, { role: 'assistant', content: data.reply }];
+      setChatHistory(updatedHistory);
+
+      // Save marks and quote
+      if (data.quote || (data.marks && data.marks.length > 0)) {
+        await fetch(`http://localhost:3001/api/bricks/${brick.id}/marks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            marks: data.marks, 
+            quote: data.quote 
+          })
+        });
+
+        const marksStr = JSON.stringify(data.marks);
+        const updatedBricks = bricks.map(b => b.id === brick.id ? { 
+          ...b, 
+          quote: data.quote || b.quote,
+          marks: data.marks && data.marks.length > 0 ? marksStr : b.marks 
+        } : b);
+        setBricks(updatedBricks);
+      }
     } catch (e) {
       console.error(e);
     }
+    setIsTyping(false);
+  };
+
+  const openAgent = (brickId) => {
+    setActiveBrickId(brickId);
+    setChatHistory([]);
+    const brick = bricks.find(b => b.id === brickId);
+    if (brick) interactWithAgent(brick, "Hello."); // Initial greeting
   };
 
   // Group bricks by row for offset layout
@@ -141,7 +171,7 @@ export default function App() {
                 key={brick.id} 
                 brick={brick} 
                 onSaveStroke={saveStroke}
-                onSuggestQuote={suggestQuote}
+                onAgentInteract={() => openAgent(brick.id)}
                 isHovered={hoveredBrick === brick.id}
                 setHovered={(val) => setHoveredBrick(val ? brick.id : null)}
               />
@@ -154,6 +184,41 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Chat Agent UI */}
+      {activeBrickId && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', width: '300px',
+          background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 1000
+        }}>
+          <div style={{ background: '#4A3B32', color: 'white', padding: '10px', display: 'flex', justifyContent: 'space-between' }}>
+            <span>Brick Agent</span>
+            <button onClick={() => setActiveBrickId(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>✕</button>
+          </div>
+          <div style={{ height: '300px', overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {chatHistory.filter(m => m.content !== 'Hello.').map((msg, i) => (
+              <div key={i} style={{ 
+                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                background: msg.role === 'user' ? '#DCAE96' : '#F5F5F5',
+                padding: '8px', borderRadius: '4px', maxWidth: '80%'
+              }}>
+                {msg.content}
+              </div>
+            ))}
+            {isTyping && <div style={{ alignSelf: 'flex-start', color: '#888' }}>Typing...</div>}
+          </div>
+          <form style={{ display: 'flex', borderTop: '1px solid #eee' }} onSubmit={e => {
+            e.preventDefault();
+            const val = e.target.elements.message.value;
+            if (val) interactWithAgent(bricks.find(b => b.id === activeBrickId), val);
+            e.target.reset();
+          }}>
+            <input name="message" style={{ flex: 1, padding: '10px', border: 'none', outline: 'none' }} placeholder="Tell the agent..." />
+            <button style={{ background: '#2E8B57', color: 'white', border: 'none', padding: '0 15px', cursor: 'pointer' }}>Send</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

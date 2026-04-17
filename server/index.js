@@ -56,8 +56,8 @@ app.get('/api/wall', async (req, res) => {
   if (!mcpConnected) {
     // Return mock data for testing if MCP is unavailable
     return res.json([
-      { id: '1', owner: 'Alice', placedAt: Date.now() - 30 * 24 * 3600 * 1000, quote: 'First brick', strokePaths: [], x: 0, y: 0 },
-      { id: '2', owner: 'Bob', placedAt: Date.now() - 100 * 24 * 3600 * 1000, quote: 'Climbing up', strokePaths: [], x: 1, y: 0 }
+      { id: '1', owner: 'Alice', placedAt: Date.now() - 30 * 24 * 3600 * 1000, quote: 'First brick', strokePaths: '[]', marks: '[{"col":2,"row":2,"type":"square","color":"chalk-white"}]', x: 0, y: 0 },
+      { id: '2', owner: 'Bob', placedAt: Date.now() - 100 * 24 * 3600 * 1000, quote: 'Climbing up', strokePaths: '[]', marks: '[]', x: 1, y: 0 }
     ]);
   }
   
@@ -82,6 +82,7 @@ app.post('/api/bricks', async (req, res) => {
     placedAt: Date.now(),
     quote: quote || '',
     strokePaths: '[]',
+    marks: '[]',
     x, y
   };
   
@@ -125,31 +126,89 @@ app.post('/api/bricks/:id/doodle', async (req, res) => {
 });
 
 // Agent integration
-app.post('/api/suggest-quote', async (req, res) => {
-  const { owner, ageDays, neighborQuotes } = req.body;
+app.post('/api/agent-interact', async (req, res) => {
+  const { isOwner, messageHistory, currentMarks } = req.body;
   
+  const systemPrompt = `You are the memory and creative agent of BrickbyBrick — a collaborative wall where every person owns one brick, decorated with their own hand-placed marks, quotes, and drawings.
+
+The drawing system works like this: Each brick is a grid of cells — 16 columns (0-15) × 8 rows (0-7). A user decorates their brick by placing marks into cells. Each mark has a type and a color:
+Colors: brick-red, moss-green, wheat-gold, chalk-white, charcoal, rust-orange, sage, dusty-rose.
+
+What you do as the agent:
+${isOwner 
+  ? "When a user first arrives, invite them to place their brick. Ask: what do you want your brick to say — and what does it look like? Help them describe a simple pattern (e.g. 'a zigzag', 'my initials') and translate that description into a marks array. They can also just provide a quote."
+  : "When a user visits a brick that isn't theirs, read its marks array and describe what you see in one quiet sentence. Then offer to let them leave a single mark of their own as a contribution, with a visitor:true flag."}
+
+Always respond in strictly valid JSON format with the following structure, adapting to the conversation:
+{
+  "reply": "Your conversational response",
+  "quote": "If they finalized a quote, put it here, otherwise empty string",
+  "marks": [ { "col": 0, "row": 0, "type": "square", "color": "chalk-white", "visitor": false } ] 
+}
+Only output the JSON object. Do not wrap in markdown tags. The marks array you return will completely replace (or append to) their current marks, so include whatever pattern they ask for.`;
+
   try {
-    const tools = mcpConnected ? (await mcpClient.request({ method: "tools/list" }, typeof Object)).tools : [];
-    
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20241022",
-      max_tokens: 150,
-      system: "You are a poet assisting users adding quotes to a brick wall. The wall vines grow as bricks age. Provide a short, pithy quote maximum 10 words.",
-      messages: [
-        {
-          role: "user",
-          content: `Suggest a quote for a brick placed by ${owner}. The brick is ${ageDays} days old. Neighboring quotes are: ${neighborQuotes.join(', ')}.`
-        }
-      ],
-      // We pass MCP tools directly to claude if we want them to do stuff, but the prompt says they just *read* context to return a quote!
+      max_tokens: 500,
+      system: systemPrompt,
+      messages: messageHistory // Array of { role: "user" | "assistant", content: "..." }
     });
     
-    // In Anthropic API, it returns message.content
-    const suggestion = message.content[0].text;
-    res.json({ suggestion });
+    const responseText = message.content[0].text;
+    let parsed;
+    try {
+      parsed = JSON.parse(responseText.trim());
+    } catch(e) {
+      // In case Claude fails to return valid JSON, do a fallback
+      // Sometimes claude wraps json in ```json ... ```
+      const match = responseText.match(/\\{.*\\}/s);
+      if (match) parsed = JSON.parse(match[0]);
+      else throw e;
+    }
+    
+    res.json(parsed);
   } catch (err) {
     console.error(err);
-    res.json({ suggestion: "Time grows all things." }); // Fallback
+    res.status(500).json({ error: "Agent unavailable." });
+  }
+});
+
+// Save marks to brick
+app.post('/api/bricks/:id/marks', async (req, res) => {
+  const { marks, quote } = req.body;
+  if (!mcpConnected) return res.json({ success: true, marks, quote });
+  
+  try {
+    if (marks) {
+      await mcpClient.request({
+        method: "tools/call",
+        params: {
+          name: "update_node_property",
+          arguments: {
+            id: req.params.id,
+            property: "marks",
+            value: JSON.stringify(marks)
+          }
+        }
+      }, typeof Object);
+    }
+    if (quote) {
+      await mcpClient.request({
+        method: "tools/call",
+        params: {
+          name: "update_node_property",
+          arguments: {
+            id: req.params.id,
+            property: "quote",
+            value: quote
+          }
+        }
+      }, typeof Object);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -6,7 +6,7 @@ import { Leaf } from 'lucide-react'; // if we want vector leaves instead of just
 export default function Brick({ 
   brick, 
   onSaveStroke, 
-  onSuggestQuote,
+  onAgentInteract,
   isHovered,
   setHovered
 }) {
@@ -17,6 +17,20 @@ export default function Brick({
 
   let doodlePaths = [];
   try { doodlePaths = JSON.parse(brick.strokePaths); } catch (e) {}
+
+  let marks = [];
+  try { if (brick.marks) marks = JSON.parse(brick.marks); } catch (e) {}
+
+  const colorMap = {
+    'brick-red': '#8A3324',
+    'moss-green': '#8F9779',
+    'wheat-gold': '#F5DEB3',
+    'chalk-white': '#F8F8FF',
+    'charcoal': '#36454F',
+    'rust-orange': '#C35817',
+    'sage': '#9DC183',
+    'dusty-rose': '#DCAE96'
+  };
 
   return (
     <div 
@@ -34,6 +48,23 @@ export default function Brick({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Marks Grid Overlay */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', display: 'flex', flexWrap: 'wrap' }}>
+        {marks.map((m, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            left: m.col * (300 / 16),
+            top: m.row * (150 / 8),
+            width: 300 / 16,
+            height: 150 / 8,
+            backgroundColor: colorMap[m.color] || m.color,
+            borderRadius: m.type === 'circle' ? '50%' : '2px',
+            opacity: m.visitor ? 0.9 : 0.7,
+            boxShadow: m.visitor ? '0 0 2px rgba(255,255,255,0.5)' : 'none'
+          }} />
+        ))}
+      </div>
+
       {/* Doodle Canvas Overlay */}
       <DoodleCanvas 
         brickId={brick.id} 
@@ -80,9 +111,9 @@ export default function Brick({
         </div>
       )}
 
-      {isHovered && !brick.quote && (
+      {isHovered && (
         <button 
-          onClick={() => onSuggestQuote(brick)}
+          onClick={onAgentInteract}
           style={{
             position: 'absolute',
             bottom: '10px',
@@ -93,10 +124,11 @@ export default function Brick({
             borderRadius: '4px',
             padding: '4px 8px',
             cursor: 'pointer',
-            fontSize: '12px'
+            fontSize: '12px',
+            pointerEvents: 'auto'
           }}
         >
-          Suggest Quote
+          Talk to Agent
         </button>
       )}
     </div>

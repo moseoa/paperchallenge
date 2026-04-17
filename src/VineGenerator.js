@@ -30,7 +30,13 @@ function catmullRom2bezier(points) {
 }
 
 export function generateVines(brickAgeDays, seed, width = 300, height = 150) {
-  if (brickAgeDays < 21) return { paths: [], leaves: [] }; // < 3 weeks
+  let vineStage = "none";
+  if (brickAgeDays >= 730) vineStage = "reclaimed";
+  else if (brickAgeDays >= 180) vineStage = "leafy";
+  else if (brickAgeDays >= 90) vineStage = "branching";
+  else if (brickAgeDays >= 21) vineStage = "tendril";
+
+  if (brickAgeDays < 21) return { paths: [], leaves: [], vineStage }; // < 3 weeks
 
   const random = mulberry32(seed);
   
@@ -89,5 +95,5 @@ export function generateVines(brickAgeDays, seed, width = 300, height = 150) {
     }
   }
 
-  return { paths, leaves };
+  return { paths, leaves, vineStage };
 }
