@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Brick from './Brick';
+import DoodleConsoleModal from './DoodleConsoleModal';
 import './index.css';
 
 export default function App() {
   const [bricks, setBricks] = useState([]);
   const [hoveredBrick, setHoveredBrick] = useState(null);
   const [activeBrickId, setActiveBrickId] = useState(null);
+  const [editingDoodleId, setEditingDoodleId] = useState(null);
   const [currentUser] = useState('User_' + Math.floor(Math.random() * 1000));
   const [isPlacing, setIsPlacing] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
@@ -157,7 +159,7 @@ export default function App() {
         </div>
       </header>
 
-      <main style={{ padding: '40px', display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', overflowX: 'auto', minHeight: '80vh' }}>
+      <main style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowX: 'auto', minHeight: '80vh' }}>
         {rows.length > 0 ? rows.map((rowArr, rowIndex) => (
           <div 
             key={rowIndex} 
@@ -172,6 +174,7 @@ export default function App() {
                 brick={brick} 
                 onSaveStroke={saveStroke}
                 onAgentInteract={() => openAgent(brick.id)}
+                onDrawInteract={() => setEditingDoodleId(brick.id)}
                 isHovered={hoveredBrick === brick.id}
                 setHovered={(val) => setHoveredBrick(val ? brick.id : null)}
               />
@@ -218,6 +221,24 @@ export default function App() {
             <button style={{ background: '#2E8B57', color: 'white', border: 'none', padding: '0 15px', cursor: 'pointer' }}>Send</button>
           </form>
         </div>
+      )}
+
+      {/* Editing Console Modal */}
+      {editingDoodleId && (
+        <DoodleConsoleModal 
+          brickId={editingDoodleId}
+          initialPaths={
+            (()=>{
+              try { return JSON.parse(bricks.find(b=>b.id===editingDoodleId)?.strokePaths) } 
+              catch(e) { return [] }
+            })()
+          }
+          onSave={(paths) => {
+            saveStroke(editingDoodleId, JSON.stringify(paths));
+            setEditingDoodleId(null);
+          }}
+          onCancel={() => setEditingDoodleId(null)}
+        />
       )}
     </div>
   );

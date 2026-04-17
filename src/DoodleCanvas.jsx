@@ -17,7 +17,7 @@ export function getSvgPathFromStroke(stroke) {
   return d.join(' ')
 }
 
-export default function DoodleCanvas({ brickId, initialPaths = [], onSaveStroke }) {
+export default function DoodleCanvas({ brickId, initialPaths = [], onSaveStroke, width = 300, height = 150 }) {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState([]);
@@ -33,7 +33,7 @@ export default function DoodleCanvas({ brickId, initialPaths = [], onSaveStroke 
   useEffect(() => {
     // Render existing paths
     const ctx = canvasRef.current.getContext('2d');
-    ctx.clearRect(0, 0, 300, 150);
+    ctx.clearRect(0, 0, width, height);
     
     savedPaths.forEach(pathData => {
         const p = new Path2D(pathData.d);
@@ -61,7 +61,7 @@ export default function DoodleCanvas({ brickId, initialPaths = [], onSaveStroke 
     const stroke = getStroke([...currentPoints, newPoint], tools[currentTool].config);
     
     const ctx = canvasRef.current.getContext('2d');
-    ctx.clearRect(0, 0, 300, 150);
+    ctx.clearRect(0, 0, width, height);
     // Render saved
     savedPaths.forEach(pathData => {
         const p = new Path2D(pathData.d);
@@ -118,8 +118,8 @@ export default function DoodleCanvas({ brickId, initialPaths = [], onSaveStroke 
       </div>
       <canvas
         ref={canvasRef}
-        width={300}
-        height={150}
+        width={width}
+        height={height}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -128,8 +128,8 @@ export default function DoodleCanvas({ brickId, initialPaths = [], onSaveStroke 
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '300px',
-          height: '150px',
+          width: `${width}px`,
+          height: `${height}px`,
           cursor: 'crosshair',
           touchAction: 'none'
         }}
