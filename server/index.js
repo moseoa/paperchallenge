@@ -214,3 +214,6 @@ app.post('/api/bricks/:id/marks', async (req, res) => {
 
 const PORT = 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Prevent node 0 code exit
+setInterval(() => {}, 1000 * 60 * 60);
